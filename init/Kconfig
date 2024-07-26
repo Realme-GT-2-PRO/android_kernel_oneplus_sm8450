@@ -872,6 +872,7 @@ config UCLAMP_BUCKETS_COUNT
 
 #ifdef OPLUS_FEATURE_PERFORMANCE_SCHED
 source "kernel/oplus_cpu/sched/Kconfig"
+source "kernel/sched/walt/tuning/Kconfig"
 #endif /* OPLUS_FEATURE_PERFORMANCE_SCHED */
 
 endmenu
