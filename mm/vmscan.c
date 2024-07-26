@@ -2744,11 +2744,11 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 	 * dropped to zero at the first pass.
 	 */
 #if defined(CONFIG_CONT_PTE_HUGEPAGE) && CONFIG_POOL_ASYNC_RECLAIM
-	scan_adjusted = (!cgroup_reclaim(sc) && !current_is_kswapd() &&
+	proportional_reclaim = (!cgroup_reclaim(sc) && !current_is_kswapd() &&
 			 sc->priority == DEF_PRIORITY &&
 			  !(sc->gfp_mask & POOL_USER_ALLOC_MASK));
 #else
-	scan_adjusted = (!cgroup_reclaim(sc) && !current_is_kswapd() &&
+	proportional_reclaim = (!cgroup_reclaim(sc) && !current_is_kswapd() &&
 			 sc->priority == DEF_PRIORITY);
 #endif
 
@@ -2775,7 +2775,7 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 
 		cond_resched();
 
-		if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
+		if (nr_reclaimed < nr_to_reclaim || proportional_reclaim)
 			continue;
 
 		/*
@@ -2827,7 +2827,7 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 		nr[lru] = targets[lru] * (100 - percentage) / 100;
 		nr[lru] -= min(nr[lru], nr_scanned);
 
-		scan_adjusted = true;
+		proportional_reclaim = true;
 	}
 	blk_finish_plug(&plug);
 	sc->nr_reclaimed += nr_reclaimed;

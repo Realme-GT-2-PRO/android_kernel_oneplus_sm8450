@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  */
-
+//
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -187,14 +187,20 @@ static int rt1711_read_device(void *client, u32 reg, int len, void *dst)
 {
 	struct i2c_client *i2c = client;
 	int ret = 0, count = 5;
+#ifdef ENABLE_RT1711_DBG
 	u64 t1 = 0, t2 = 0;
+#endif
 
 	while (1) {
+#ifdef ENABLE_RT1711_DBG
 		t1 = local_clock();
+#endif
 		ret = i2c_smbus_read_i2c_block_data(i2c, reg, len, dst);
+#ifdef ENABLE_RT1711_DBG
 		t2 = local_clock();
 		RT1711_INFO("%s del = %lluus, reg = %02X, len = %d\n",
 			    __func__, (t2 - t1) / NSEC_PER_USEC, reg, len);
+#endif
 		if (ret < 0 && count > 1)
 			count--;
 		else
@@ -207,15 +213,21 @@ static int rt1711_read_device(void *client, u32 reg, int len, void *dst)
 static int rt1711_write_device(void *client, u32 reg, int len, const void *src)
 {
 	struct i2c_client *i2c = client;
+#ifdef ENABLE_RT1711_DBG
 	int ret = 0, count = 5;
 	u64 t1 = 0, t2 = 0;
+#endif
 
 	while (1) {
+#ifdef ENABLE_RT1711_DBG
 		t1 = local_clock();
+#endif
 		ret = i2c_smbus_write_i2c_block_data(i2c, reg, len, src);
+#ifdef ENABLE_RT1711_DBG
 		t2 = local_clock();
 		RT1711_INFO("%s del = %lluus, reg = %02X, len = %d\n",
 			    __func__, (t2 - t1) / NSEC_PER_USEC, reg, len);
+#endif
 		if (ret < 0 && count > 1)
 			count--;
 		else
@@ -846,10 +858,8 @@ static inline int rt1711_fault_status_vconn_ov(struct tcpc_device *tcpc)
 
 int rt1711_fault_status_clear(struct tcpc_device *tcpc, uint8_t status)
 {
-	int ret;
-
 	if (status & TCPC_V10_REG_FAULT_STATUS_VCONN_OV)
-		ret = rt1711_fault_status_vconn_ov(tcpc);
+		rt1711_fault_status_vconn_ov(tcpc);
 
 	rt1711_i2c_write8(tcpc, TCPC_V10_REG_FAULT_STATUS, status);
 	return 0;

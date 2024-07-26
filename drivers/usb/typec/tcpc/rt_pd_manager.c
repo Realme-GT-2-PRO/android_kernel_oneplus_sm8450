@@ -259,7 +259,7 @@ static void usb_dwork_handler(struct work_struct *work)
 		break;
 	case DR_DEVICE:
 		ret = smblib_get_prop(rpmd, POWER_SUPPLY_PROP_REAL_TYPE, &val);
-		dev_info(rpmd->dev, "%s polling_cnt = %d, ret = %d type = %d\n",
+		dev_dbg(rpmd->dev, "%s polling_cnt = %d, ret = %d type = %d\n",
 				    __func__, ++rpmd->usb_type_polling_cnt,
 				    ret, val.intval);
 		if (ret < 0 || val.intval == POWER_SUPPLY_TYPE_UNKNOWN) {
