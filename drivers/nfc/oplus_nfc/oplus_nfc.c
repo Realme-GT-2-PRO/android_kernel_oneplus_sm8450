@@ -23,7 +23,7 @@
 static char current_chipset[32];
 static bool support_nfc = false;
 
-bool is_nfc_support(void)
+bool is_nfc_support()
 {
 	return support_nfc;
 }

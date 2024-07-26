@@ -838,6 +838,7 @@ struct aw_haptic {
 	struct mutex rtp_lock;
 	struct hrtimer timer;
 	struct work_struct rtp_work;
+	struct work_struct rtp_key_work;
 	struct work_struct rtp_single_cycle_work;
 	struct work_struct rtp_regroup_work;
 	struct delayed_work ram_work;
@@ -865,6 +866,7 @@ struct aw_haptic {
 #ifdef OPLUS_FEATURE_CHG_BASIC
 	struct work_struct  motor_old_test_work;
 	unsigned int motor_old_test_mode;
+	bool custom_key_file_support;
 #endif
 
 };

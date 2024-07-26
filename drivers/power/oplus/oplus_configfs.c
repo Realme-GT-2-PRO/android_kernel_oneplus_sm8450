@@ -164,7 +164,39 @@ static ssize_t otg_switch_show(struct device *dev, struct device_attribute *attr
 	return sprintf(buf, "%d\n", chip->otg_switch);
 }
 
-static DEVICE_ATTR_RO(otg_switch);
+void __attribute__((weak)) oplus_set_otg_switch_status(bool value)
+{
+	return;
+}
+
+static ssize_t otg_switch_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int val = 0;
+	struct oplus_chg_chip *chip = NULL;
+
+	chip = (struct oplus_chg_chip *)dev_get_drvdata(oplus_usb_dir);
+	if (!chip) {
+		chg_err("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	if (kstrtos32(buf, 0, &val)) {
+		chg_err("buf error\n");
+		return -EINVAL;
+	}
+
+	if (val == 1) {
+		chip->otg_switch = true;
+		oplus_set_otg_switch_status(true);
+	} else {
+		chip->otg_switch = false;
+		chip->otg_online = false;
+		oplus_set_otg_switch_status(false);
+	}
+
+	return count;
+}
+static DEVICE_ATTR_RW(otg_switch);
 
 int __attribute__((weak)) oplus_get_usb_status(void)
 {
@@ -817,7 +849,7 @@ static ssize_t mmi_charging_enable_store(struct device *dev, struct device_attri
 			if (oplus_voocphy_get_bidirect_cp_support()) {
 				oplus_voocphy_set_chg_auto_mode(false);
 			}
-			if (!chip->otg_online)
+			if (!chip->otg_online && !oplus_vooc_get_fastchg_started())
 				oplus_chg_turn_on_charging_in_work();
 			if (oplus_chg_get_voocphy_support() == ADSP_VOOCPHY) {
 				oplus_adsp_voocphy_turn_on();
@@ -2584,6 +2616,78 @@ static ssize_t time_zone_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(time_zone);
 
+static ssize_t deep_dischg_counts_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct oplus_configfs_device *chip = dev->driver_data;
+	int counts = 0;
+
+	if (!chip) {
+		chg_err("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	if (counts < 0)
+		return counts;
+
+	return sprintf(buf, "%d\n", counts);
+}
+
+static ssize_t deep_dischg_counts_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct oplus_configfs_device *chip = dev->driver_data;
+	int val = 0;
+
+	if (!chip) {
+		chg_err("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	if (kstrtos32(buf, 0, &val)) {
+		chg_err("buf error\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+static DEVICE_ATTR_RW(deep_dischg_counts);
+
+static ssize_t deep_dischg_count_cali_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct oplus_configfs_device *chip = dev->driver_data;
+	int counts = 0;
+
+	if (!chip) {
+		chg_err("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	if (counts < 0)
+		return counts;
+
+	return sprintf(buf, "%d\n", counts);
+}
+
+static ssize_t deep_dischg_count_cali_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct oplus_configfs_device *chip = dev->driver_data;
+	int val = 0;
+
+	if (!chip) {
+		chg_err("chip is NULL\n");
+		return -EINVAL;
+	}
+
+	if (kstrtos32(buf, 0, &val)) {
+		chg_err("buf error\n");
+		return -EINVAL;
+	}
+
+	return count;
+}
+static DEVICE_ATTR_RW(deep_dischg_count_cali);
+
 static struct device_attribute *oplus_common_attributes[] = {
 #ifdef OPLUS_CHG_ADB_ROOT_ENABLE
 	&dev_attr_charge_parameter,
@@ -2598,6 +2702,8 @@ static struct device_attribute *oplus_common_attributes[] = {
 	&dev_attr_bob_status,
 	&dev_attr_time_zone,
 	&dev_attr_battlog_push_config,
+	&dev_attr_deep_dischg_counts,
+	&dev_attr_deep_dischg_count_cali,
 	NULL
 };
 #ifdef OPLUS_FEATURE_CHG_BASIC

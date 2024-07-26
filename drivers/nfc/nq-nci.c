@@ -865,7 +865,7 @@ static int nfc_open(struct inode *inode, struct file *filp)
 
 		if (gpio_is_valid(nqx_dev->firm_gpio)) {
 			gpio_set_value(nqx_dev->firm_gpio, 0);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		}
 	}
 
@@ -890,7 +890,7 @@ static int nfc_close(struct inode *inode, struct file *filp)
 
 		if (gpio_is_valid(nqx_dev->firm_gpio)) {
 			gpio_set_value(nqx_dev->firm_gpio, 0);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		}
 	}
 
@@ -939,14 +939,14 @@ int nfc_ioctl_power_states(struct file *filp, unsigned long arg)
 			__func__, nqx_dev);
 		if (gpio_is_valid(nqx_dev->firm_gpio)) {
 			gpio_set_value(nqx_dev->firm_gpio, 0);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		}
 
 		if (gpio_is_valid(nqx_dev->ese_gpio)) {
 			if (!gpio_get_value(nqx_dev->ese_gpio)) {
 				dev_dbg(&nqx_dev->client->dev, "disabling en_gpio\n");
 				gpio_set_value(nqx_dev->en_gpio, 0);
-				usleep_range(10000, 10100);
+				usleep_range(20000, 20100);
 			} else {
 				dev_dbg(&nqx_dev->client->dev, "keeping en_gpio high\n");
 			}
@@ -954,13 +954,13 @@ int nfc_ioctl_power_states(struct file *filp, unsigned long arg)
 		} else {
 			dev_dbg(&nqx_dev->client->dev, "ese_gpio invalid, set en_gpio to low\n");
 			gpio_set_value(nqx_dev->en_gpio, 0);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		}
 		#else /* OPLUS_BUG_STABILITY */
 		} else if(nqx_dev->spi_ven_enabled == false){
 			dev_err(&nqx_dev->client->dev, "spi_ven_enabled is false, set en_gpio to low\n");
 			gpio_set_value(nqx_dev->en_gpio, 0);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		} else {
 			dev_err(&nqx_dev->client->dev, "hold ven state high(%d),spi_ven_enabled=%d\n",
 				    gpio_get_value(nqx_dev->en_gpio), nqx_dev->spi_ven_enabled);
@@ -979,18 +979,18 @@ int nfc_ioctl_power_states(struct file *filp, unsigned long arg)
 			__func__, nqx_dev);
 		if (gpio_is_valid(nqx_dev->firm_gpio)) {
 			gpio_set_value(nqx_dev->firm_gpio, 0);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		}
 
 		#ifndef OPLUS_BUG_STABILITY
 		gpio_set_value(nqx_dev->en_gpio, 1);
-		usleep_range(10000, 10100);
+		usleep_range(20000, 20100);
 		#else /* OPLUS_BUG_STABILITY */
 		if (gpio_get_value(nqx_dev->en_gpio) || nqx_dev->spi_ven_enabled) {
 			dev_err(&nqx_dev->client->dev, "VEN gpio already high\n");
 		} else {
 			gpio_set_value(nqx_dev->en_gpio, 1);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		}
 		#endif /* OPLUS_BUG_STABILITY */
 
@@ -1024,15 +1024,15 @@ int nfc_ioctl_power_states(struct file *filp, unsigned long arg)
 			}
 		}
 		gpio_set_value(nqx_dev->en_gpio, 1);
-		usleep_range(10000, 10100);
+		usleep_range(20000, 20100);
 		if (gpio_is_valid(nqx_dev->firm_gpio)) {
 			gpio_set_value(nqx_dev->firm_gpio, 1);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		}
 		gpio_set_value(nqx_dev->en_gpio, 0);
-		usleep_range(10000, 10100);
+		usleep_range(20000, 20100);
 		gpio_set_value(nqx_dev->en_gpio, 1);
-		usleep_range(10000, 10100);
+		usleep_range(20000, 20100);
 	} else if (arg == NFC_FW_DWL_HIGH) {
 		/*
 		 * Setting firmware download gpio to HIGH for SN100U
@@ -1041,7 +1041,7 @@ int nfc_ioctl_power_states(struct file *filp, unsigned long arg)
 		dev_dbg(&nqx_dev->client->dev, "SN100 fw gpio HIGH\n");
 		if (gpio_is_valid(nqx_dev->firm_gpio)) {
 			gpio_set_value(nqx_dev->firm_gpio, 1);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		} else
 			dev_err(&nqx_dev->client->dev,
 				"firm_gpio is invalid\n");
@@ -1050,11 +1050,11 @@ int nfc_ioctl_power_states(struct file *filp, unsigned long arg)
 	else if (arg == 5) {
 		if(nqx_dev->spi_ven_enabled == false){
 			dev_err(&nqx_dev->client->dev, "spi_ven_enabled is false, VEN reset START\n");
-			msleep(10);
+			msleep(20);
 			gpio_set_value(nqx_dev->en_gpio, 0);
-			msleep(10);
+			msleep(20);
 			gpio_set_value(nqx_dev->en_gpio, 1);
-			msleep(10);
+			msleep(20);
 			dev_err(&nqx_dev->client->dev,"%s VEN reset DONE >>>>>>>\n", __func__);
 		}
 	}
@@ -1067,7 +1067,7 @@ int nfc_ioctl_power_states(struct file *filp, unsigned long arg)
 		dev_dbg(&nqx_dev->client->dev, "SN100 fw gpio LOW\n");
 		if (gpio_is_valid(nqx_dev->firm_gpio)) {
 			gpio_set_value(nqx_dev->firm_gpio, 0);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		} else {
 			dev_err(&nqx_dev->client->dev,
 				"firm_gpio is invalid\n");
@@ -1281,16 +1281,17 @@ static int nfcc_hw_check(struct i2c_client *client, struct nqx_dev *nqx_dev)
 	}
 
 reset_enable_gpio:
+	usleep_range(20000, 20100);
 	/* making sure that the NFCC starts in a clean state. */
 	gpio_set_value(enable_gpio, 1);/* HPD : Enable*/
 	/* hardware dependent delay */
-	usleep_range(10000, 10100);
+	usleep_range(20000, 20100);
 	gpio_set_value(enable_gpio, 0);/* ULPM: Disable */
 	/* hardware dependent delay */
-	usleep_range(10000, 10100);
+	usleep_range(20000, 20100);
 	gpio_set_value(enable_gpio, 1);/* HPD : Enable*/
 	/* hardware dependent delay */
-	usleep_range(10000, 10100);
+	usleep_range(20000, 20100);
 
 	nci_reset_cmd[0] = 0x20;
 	nci_reset_cmd[1] = 0x00;
@@ -1304,12 +1305,12 @@ reset_enable_gpio:
 
 		if (gpio_is_valid(nqx_dev->firm_gpio)) {
 			gpio_set_value(nqx_dev->firm_gpio, 1);
-			usleep_range(10000, 10100);
+			usleep_range(20000, 20100);
 		}
 		gpio_set_value(nqx_dev->en_gpio, 0);
-		usleep_range(10000, 10100);
+		usleep_range(20000, 20100);
 		gpio_set_value(nqx_dev->en_gpio, 1);
-		usleep_range(10000, 10100);
+		usleep_range(20000, 20100);
 
 		nci_get_version_cmd[0] = 0x00;
 		nci_get_version_cmd[1] = 0x04;
@@ -1466,14 +1467,14 @@ done:
 reset_enable_gpio:
     gpio_set_value(firm_gpio, 1);
     /* hardware dependent delay */
-    usleep_range(10000, 10100);
+	usleep_range(20000, 20100);
     /* making sure that the NFCC starts in a clean state. */
     gpio_set_value(enable_gpio, 0);/* ULPM: Disable */
     /* hardware dependent delay */
-    usleep_range(10000, 10100);
+	usleep_range(20000, 20100);
     gpio_set_value(enable_gpio, 1);/* HPD : Enable*/
     /* hardware dependent delay */
-    usleep_range(10000, 10100);
+	usleep_range(20000, 20100);
 
     nci_get_fw_cmd[0] = 0x00;
     nci_get_fw_cmd[1] = 0x04;
@@ -2003,7 +2004,7 @@ static int nqx_remove(struct i2c_client *client)
 
 	gpio_set_value(nqx_dev->en_gpio, 0);
 	// HW dependent delay before LDO goes into LPM mode
-	usleep_range(10000, 10100);
+	usleep_range(20000, 20100);
 	if (nqx_dev->reg) {
 		ret = nfc_ldo_unvote(nqx_dev);
 		regulator_put(nqx_dev->reg);

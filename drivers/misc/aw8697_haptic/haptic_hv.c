@@ -43,6 +43,7 @@
 
 #include "haptic_hv.h"
 #include "haptic_hv_reg.h"
+#include "haptic_hv_rtp_key_data.h"
 #ifdef CONFIG_HAPTIC_FEEDBACK_MODULE
 #include "haptic_feedback.h"
 #endif
@@ -3985,6 +3986,8 @@ static int parse_dt(struct device *dev, struct aw_haptic *aw_haptic,
 		aw_haptic->device_id = 815;
 	aw_dev_info("%s: device_id=%d\n", __func__, aw_haptic->device_id);
 
+	aw_haptic->custom_key_file_support = of_property_read_bool(np, "oplus,custom_key_file_support");
+	aw_dev_info("oplus,custom_key_file_support = %d\n", aw_haptic->custom_key_file_support);
 	if (of_property_read_u32(np, "oplus,aw86927_boost_voltage", &max_boost_voltage))
 		AW86927_HAPTIC_HIGH_LEVEL_REG_VAL = DEFAULT_BOOST_VOLT; /* boost 8.4V */
 	else
@@ -6285,8 +6288,14 @@ static ssize_t rtp_store(struct device *dev, struct device_attribute *attr,
 	mutex_unlock(&aw_haptic->lock);
 	if (val < (sizeof(aw_rtp_name)/AW_RTP_NAME_MAX)) {
 		aw_haptic->rtp_file_num = val;
-		if (val)
-			queue_work(system_unbound_wq, &aw_haptic->rtp_work);
+		if (val) {
+			if (aw_haptic->device_id == 815 &&
+				((val >= 302 && val <= 305) || (val >= 110 && val <= 112))) {
+				queue_work(system_unbound_wq, &aw_haptic->rtp_key_work);
+			} else {
+				queue_work(system_unbound_wq, &aw_haptic->rtp_work);
+			}
+		}
 
 	} else {
 		aw_dev_err("%s: rtp_file_num 0x%02x over max value \n",
@@ -7539,6 +7548,369 @@ static struct attribute_group vibrator_attribute_group = {
 	.attrs = vibrator_attributes
 };
 
+#define OPLUS_162HZ_F0 1630
+#define OPLUS_166HZ_F0 1670
+#define OPLUS_170HZ_F0 1710
+#define OPLUS_174HZ_F0 1750
+#define OPLUS_178HZ_F0 1780
+
+#define SG_INPUT_DOWN_HIGH  302
+#define SG_INPUT_UP_HIGH    303
+#define SG_INPUT_DOWN_LOW   304
+#define SG_INPUT_UP_LOW     305
+#define INPUT_HIGH          112
+#define INPUT_MEDI          111
+#define INPUT_LOW           110
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+static uint8_t *custom_0809_rtp_key_file(struct aw_haptic *aw_haptic, uint32_t *data_len)
+{
+	switch(aw_haptic->rtp_file_num) {
+	case SG_INPUT_DOWN_HIGH:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_302_162Hz);
+			return aw_haptic_0809_rtp_302_162Hz;
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_302_166Hz);
+			return aw_haptic_0809_rtp_302_166Hz;
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_302_170Hz);
+			return aw_haptic_0809_rtp_302_170Hz;
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_302_174Hz);
+			return aw_haptic_0809_rtp_302_174Hz;
+		} else {
+			*data_len = sizeof(aw_haptic_0809_rtp_302_178Hz);
+			return aw_haptic_0809_rtp_302_178Hz;
+		}
+		break;
+	case SG_INPUT_UP_HIGH:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_303_162Hz);
+			return aw_haptic_0809_rtp_303_162Hz;
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_303_166Hz);
+			return aw_haptic_0809_rtp_303_166Hz;
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_303_170Hz);
+			return aw_haptic_0809_rtp_303_170Hz;
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_303_174Hz);
+			return aw_haptic_0809_rtp_303_174Hz;
+		} else {
+			*data_len = sizeof(aw_haptic_0809_rtp_303_178Hz);
+			return aw_haptic_0809_rtp_303_178Hz;
+		}
+		break;
+	case SG_INPUT_DOWN_LOW:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_304_162Hz);
+			return aw_haptic_0809_rtp_304_162Hz;
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_304_166Hz);
+			return aw_haptic_0809_rtp_304_166Hz;
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_304_170Hz);
+			return aw_haptic_0809_rtp_304_170Hz;
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_304_174Hz);
+			return aw_haptic_0809_rtp_304_174Hz;
+		} else {
+			*data_len = sizeof(aw_haptic_0809_rtp_304_178Hz);
+			return aw_haptic_0809_rtp_304_178Hz;
+		}
+		break;
+	case SG_INPUT_UP_LOW:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_305_162Hz);
+			return aw_haptic_0809_rtp_305_162Hz;
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_305_166Hz);
+			return aw_haptic_0809_rtp_305_166Hz;
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_305_170Hz);
+			return aw_haptic_0809_rtp_305_170Hz;
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_305_174Hz);
+			return aw_haptic_0809_rtp_305_174Hz;
+		} else {
+			*data_len = sizeof(aw_haptic_0809_rtp_305_178Hz);
+			return aw_haptic_0809_rtp_305_178Hz;
+		}
+		break;
+	case INPUT_LOW:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_110_162Hz);
+			return aw_haptic_0809_rtp_110_162Hz;
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_110_166Hz);
+			return aw_haptic_0809_rtp_110_166Hz;
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_110_170Hz);
+			return aw_haptic_0809_rtp_110_170Hz;
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_110_174Hz);
+			return aw_haptic_0809_rtp_110_174Hz;
+		} else {
+			*data_len = sizeof(aw_haptic_0809_rtp_110_178Hz);
+			return aw_haptic_0809_rtp_110_178Hz;
+		}
+		break;
+	case INPUT_MEDI:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_111_162Hz);
+			return aw_haptic_0809_rtp_111_162Hz;
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_111_166Hz);
+			return aw_haptic_0809_rtp_111_166Hz;
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_111_170Hz);
+			return aw_haptic_0809_rtp_111_170Hz;
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_111_174Hz);
+			return aw_haptic_0809_rtp_111_174Hz;
+		} else {
+			*data_len = sizeof(aw_haptic_0809_rtp_111_178Hz);
+			return aw_haptic_0809_rtp_111_178Hz;
+		}
+		break;
+	case INPUT_HIGH:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_112_162Hz);
+			return aw_haptic_0809_rtp_112_162Hz;
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_112_166Hz);
+			return aw_haptic_0809_rtp_112_166Hz;
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_112_170Hz);
+			return aw_haptic_0809_rtp_112_170Hz;
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			*data_len = sizeof(aw_haptic_0809_rtp_112_174Hz);
+			return aw_haptic_0809_rtp_112_174Hz;
+		} else {
+			*data_len = sizeof(aw_haptic_0809_rtp_112_178Hz);
+			return aw_haptic_0809_rtp_112_178Hz;
+		}
+		break;
+	default:
+		aw_dev_err("%s: can not find rtp file\n", __func__);
+		break;
+    }
+
+    return NULL;
+}
+#endif
+
+static void rtp_key_work_routine(struct work_struct *work)
+{
+	struct aw_haptic *aw_haptic = container_of(work, struct aw_haptic, rtp_key_work);
+	uint8_t *aw_haptic_rtp_key_data = NULL;
+	uint32_t aw_haptic_rtp_key_data_len = 0;
+	bool rtp_work_flag = false;
+	uint8_t reg_val = 0;
+	int cnt = 200;
+
+	aw_haptic->rtp_init = false;
+	mutex_lock(&aw_haptic->rtp_lock);
+	switch(aw_haptic->rtp_file_num) {
+	case SG_INPUT_DOWN_HIGH:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_302_162Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_302_162Hz);
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_302_166Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_302_166Hz);
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_302_170Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_302_170Hz);
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_302_174Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_302_174Hz);
+		} else {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_302_178Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_302_178Hz);
+		}
+		break;
+	case SG_INPUT_UP_HIGH:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_303_162Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_303_162Hz);
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_303_166Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_303_166Hz);
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_303_170Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_303_170Hz);
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_303_174Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_303_174Hz);
+		} else {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_303_178Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_303_178Hz);
+		}
+		break;
+	case SG_INPUT_DOWN_LOW:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_304_162Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_304_162Hz);
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_304_166Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_304_166Hz);
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_304_170Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_304_170Hz);
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_304_174Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_304_174Hz);
+		} else {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_304_178Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_304_178Hz);
+		}
+		break;
+	case SG_INPUT_UP_LOW:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_305_162Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_305_162Hz);
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_305_166Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_305_166Hz);
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_305_170Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_305_170Hz);
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_305_174Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_305_174Hz);
+		} else {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_305_178Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_305_178Hz);
+		}
+		break;
+	case INPUT_LOW:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_110_162Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_110_162Hz);
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_110_166Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_110_166Hz);
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_110_170Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_110_170Hz);
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_110_174Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_110_174Hz);
+		} else {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_110_178Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_110_178Hz);
+		}
+		break;
+	case INPUT_MEDI:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_111_162Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_111_162Hz);
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_111_166Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_111_166Hz);
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_111_170Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_111_170Hz);
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_111_174Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_111_174Hz);
+		} else {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_111_178Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_111_178Hz);
+		}
+		break;
+	case INPUT_HIGH:
+		if (aw_haptic->f0 <= OPLUS_162HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_112_162Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_112_162Hz);
+		} else if (aw_haptic->f0 <= OPLUS_166HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_112_166Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_112_166Hz);
+		} else if (aw_haptic->f0 <= OPLUS_170HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_112_170Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_112_170Hz);
+		} else if (aw_haptic->f0 <= OPLUS_174HZ_F0) {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_112_174Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_112_174Hz);
+		} else {
+			aw_haptic_rtp_key_data = aw_haptic_rtp_112_178Hz;
+			aw_haptic_rtp_key_data_len = sizeof(aw_haptic_rtp_112_178Hz);
+		}
+		break;
+	default:
+		goto undef_rtp;
+		break;
+	}
+
+#ifdef OPLUS_FEATURE_CHG_BASIC
+	if (aw_haptic->custom_key_file_support == true) {
+		aw_haptic_rtp_key_data = custom_0809_rtp_key_file(aw_haptic, &aw_haptic_rtp_key_data_len);
+		if (aw_haptic_rtp_key_data == NULL)
+			goto undef_rtp;
+	}
+#endif
+
+#ifndef OPLUS_FEATURE_CHG_BASIC
+	kfree(aw_rtp);
+	aw_rtp = kzalloc(aw_haptic_rtp_key_data_len + sizeof(int), GFP_KERNEL);
+	if (!aw_rtp) {
+		mutex_unlock(&aw_haptic->rtp_lock);//vincent
+		aw_dev_err("%s: error allocating memory\n", __func__);
+		return;
+	}
+#else
+	if (container_init(aw_haptic_rtp_key_data_len + sizeof(int)) < 0) {
+		mutex_unlock(&aw_haptic->rtp_lock);
+		aw_dev_err("%s: error allocating memory\n", __func__);
+		return;
+	}
+#endif
+	aw_rtp->len = aw_haptic_rtp_key_data_len;
+	memcpy(aw_rtp->data, aw_haptic_rtp_key_data, aw_haptic_rtp_key_data_len);
+	mutex_unlock(&aw_haptic->rtp_lock);
+
+	mutex_lock(&aw_haptic->lock);
+	aw_haptic->rtp_init = true;
+	aw_haptic->func->upload_lra(aw_haptic, AW_OSC_CALI_LRA);
+	aw_haptic->func->set_rtp_aei(aw_haptic, false);
+	aw_haptic->func->irq_clear(aw_haptic);
+	aw_haptic->func->play_stop(aw_haptic);
+	/* gain */
+	ram_vbat_comp(aw_haptic, false);
+	/* rtp mode config */
+	aw_haptic->func->play_mode(aw_haptic, AW_RTP_MODE);
+	/* haptic go */
+	aw_haptic->func->play_go(aw_haptic, true);
+	mdelay(1);
+	while (cnt) {
+		reg_val = aw_haptic->func->get_glb_state(aw_haptic);
+		if ((reg_val & AW_GLBRD_STATE_MASK) == AW_STATE_RTP) {
+			cnt = 0;
+			rtp_work_flag = true;
+			aw_dev_info("%s: RTP_GO! glb_state=0x08\n", __func__);
+		} else {
+			cnt--;
+			usleep_range(2000, 2500);
+			aw_dev_dbg("%s: wait for RTP_GO, glb_state=0x%02X\n",
+				   __func__, reg_val);
+		}
+	}
+	if (rtp_work_flag) {
+		rtp_play(aw_haptic);
+	} else {
+		/* enter standby mode */
+		aw_haptic->func->play_stop(aw_haptic);
+		aw_dev_err("%s: failed to enter RTP_GO status!\n", __func__);
+	}
+	op_clean_status(aw_haptic);
+	mutex_unlock(&aw_haptic->lock);
+	return;
+undef_rtp:
+	mutex_unlock(&aw_haptic->rtp_lock);
+	return;
+}
 
 static void rtp_single_cycle_routine(struct work_struct *work)
 {
@@ -7833,6 +8205,7 @@ static int vibrator_init(struct aw_haptic *aw_haptic)
 	aw_haptic->timer.function = vibrator_timer_func;
 	INIT_WORK(&aw_haptic->vibrator_work, vibrator_work_routine);
 	INIT_WORK(&aw_haptic->rtp_work, rtp_work_routine);
+	INIT_WORK(&aw_haptic->rtp_key_work, rtp_key_work_routine);
 	INIT_WORK(&aw_haptic->rtp_single_cycle_work, rtp_single_cycle_routine);
 	INIT_WORK(&aw_haptic->rtp_regroup_work, rtp_regroup_routine);
 	mutex_init(&aw_haptic->lock);

@@ -325,7 +325,7 @@ unsigned char get_oplus_feature(OplusBoardFeatureMask feature_num)
 EXPORT_SYMBOL(get_oplus_feature);
 
 #define SERIALNO_LEN 16
-unsigned int get_serialID(void)
+unsigned int get_serialID()
 {
     unsigned int serial_id = 0xFFFFFFFF;
 
@@ -545,7 +545,7 @@ static int project_read_func(struct seq_file *s, void *v)
     return 0;
 }
 
-unsigned int get_cdt_version(void)
+unsigned int get_cdt_version()
 {
     init_project_version();
 

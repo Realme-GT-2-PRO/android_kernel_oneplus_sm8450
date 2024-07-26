@@ -17,6 +17,10 @@
 #include "kgsl_reclaim.h"
 #include "kgsl_sharedmem.h"
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_OSVELTE)
+#include "common.h"
+#endif /* CONFIG_OPLUS_FEATURE_MM_OSVELTE */
+
 /*
  * The user can set this from debugfs to force failed memory allocations to
  * fail without trying OOM first.  This is a debug setting useful for
@@ -195,12 +199,12 @@ static ssize_t memtype_sysfs_show(struct kobject *kobj,
 		if (type == memtype->type)
 			size += memdesc->size;
 
-		kgsl_mem_entry_put(entry);
+		kgsl_mem_entry_put_deferred(entry);
 		spin_lock(&priv->mem_lock);
 	}
 	spin_unlock(&priv->mem_lock);
 
-	queue_work(kgsl_driver.lockless_workqueue, &work->work);
+	queue_work(kgsl_driver.mem_workqueue, &work->work);
 
 	return scnprintf(buf, PAGE_SIZE, "%llu\n", size);
 }
@@ -269,13 +273,23 @@ imported_mem_show(struct kgsl_process_private *priv,
 				imported_mem += size;
 			}
 		}
-
-		kgsl_mem_entry_put(entry);
+		/*
+		 * If refcount on mem entry is the last refcount, we will
+		 * call kgsl_mem_entry_destroy and detach it from process
+		 * list. When there is no refcount on the process private,
+		 * we will call kgsl_destroy_process_private to do cleanup.
+		 * During cleanup, we will try to remove the same sysfs
+		 * node which is in use by the current thread and this
+		 * situation will end up in a deadloack.
+		 * To avoid this situation, use a worker to put the refcount
+		 * on mem entry.
+		 */
+		kgsl_mem_entry_put_deferred(entry);
 		spin_lock(&priv->mem_lock);
 	}
 	spin_unlock(&priv->mem_lock);
 
-	queue_work(kgsl_driver.lockless_workqueue, &work->work);
+	queue_work(kgsl_driver.mem_workqueue, &work->work);
 
 	return scnprintf(buf, PAGE_SIZE, "%llu\n", imported_mem);
 }
@@ -647,25 +661,7 @@ static int kgsl_paged_map_kernel(struct kgsl_memdesc *memdesc)
 
 	mutex_lock(&kernel_map_global_lock);
 	if ((!memdesc->hostptr) && (memdesc->pages != NULL)) {
-		pgprot_t page_prot;
-		int cache;
-
-		/* Determine user-side caching policy */
-		cache = kgsl_memdesc_get_cachemode(memdesc);
-		switch (cache) {
-		case KGSL_CACHEMODE_WRITETHROUGH:
-			page_prot = PAGE_KERNEL;
-			WARN_ONCE(1, "WRITETHROUGH is deprecated for arm64");
-			break;
-		case KGSL_CACHEMODE_WRITEBACK:
-			page_prot = PAGE_KERNEL;
-			break;
-		case KGSL_CACHEMODE_UNCACHED:
-		case KGSL_CACHEMODE_WRITECOMBINE:
-		default:
-			page_prot = pgprot_writecombine(PAGE_KERNEL);
-			break;
-		}
+		pgprot_t page_prot = pgprot_writecombine(PAGE_KERNEL);
 
 		memdesc->hostptr = vmap(memdesc->pages, memdesc->page_count,
 					VM_IOREMAP, page_prot);
@@ -1091,7 +1087,6 @@ static int kgsl_memdesc_file_setup(struct kgsl_memdesc *memdesc, uint64_t size)
 		return ret;
 	}
 
-	mapping_set_unevictable(memdesc->shmem_filp->f_mapping);
 	return 0;
 }
 
@@ -1813,3 +1808,50 @@ void kgsl_free_globals(struct kgsl_device *device)
 		kfree(md);
 	}
 }
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_OSVELTE)
+
+void dump_kgsl_process_mem_detail(struct kgsl_process_private *priv)
+{
+	int i = 0;
+	int id = 0;
+	struct kgsl_mem_entry *entry = NULL;
+	uint64_t memtype_detail[KGSL_MEMTYPE_KERNEL + 1] = {0};
+
+	spin_lock(&priv->mem_lock);
+	for (entry = idr_get_next(&priv->mem_idr, &id); entry;
+		id++, entry = idr_get_next(&priv->mem_idr, &id)) {
+		struct kgsl_memdesc *memdesc;
+		unsigned int type;
+
+		if (!kgsl_mem_entry_get(entry))
+			continue;
+
+		/*
+		 * we must unlock the mem_lock
+		 * This is to avoid a deadlock where we put back last reference of the
+		 * process mem entry (via kgsl_mem_entry_put_deferred)
+		 */
+		spin_unlock(&priv->mem_lock);
+
+		memdesc = &entry->memdesc;
+		type = kgsl_memdesc_get_memtype(memdesc);
+
+		if (type <= KGSL_MEMTYPE_KERNEL)
+			memtype_detail[type] += memdesc->size;
+
+		kgsl_mem_entry_put_deferred(entry);
+		spin_lock(&priv->mem_lock);
+	}
+	spin_unlock(&priv->mem_lock);
+
+	osvelte_info("%-16s %-5s \n", "memtype", "size");
+
+	for (i = 0; i <= KGSL_MEMTYPE_KERNEL; i++) {
+		if (memtype_detail[i] > 0) {
+			osvelte_info("%-16d %-5llu\n", i, memtype_detail[i] / SZ_1K);
+		}
+	}
+}
+
+#endif /* CONFIG_OPLUS_FEATURE_MM_OSVELTE */

@@ -85,6 +85,7 @@ enum switch_vendor {
     DIO4480,
     WAS4783
 };
+#define MAX_RETRY  30
 
 /*add for 3rd protocal stack notifier*/
 #if IS_ENABLED(CONFIG_TCPC_CLASS)
@@ -143,6 +144,7 @@ struct fsa4480_priv {
 	/*add WAS4783 support*/
 	struct notifier_block chg_nb;
 	struct mutex noti_lock;
+	bool chg_registration;
 	/*add for 3rd protocal stack notifer*/
 	#if IS_ENABLED(CONFIG_TCPC_CLASS)
 	struct tcpc_device *tcpc;
@@ -872,6 +874,8 @@ static int fsa4480_probe(struct i2c_client *i2c,
 #ifdef OPLUS_ARCH_EXTENDS
 /*add DIO4480 support*/
 	unsigned int reg_value = 0;
+/*add for WAS4783*/
+	int chg_retries = MAX_RETRY;
 #endif /* OPLUS_ARCH_EXTENDS */
 
 	#ifdef OPLUS_ARCH_EXTENDS
@@ -887,6 +891,8 @@ static int fsa4480_probe(struct i2c_client *i2c,
 
 	#ifdef OPLUS_ARCH_EXTENDS
 	fsa4480_parse_dt(fsa_priv, &i2c->dev);
+	/*add for WAS4783*/
+	fsa_priv->chg_registration = false;
 	#endif /* OPLUS_ARCH_EXTENDS */
 
 	fsa_priv->regmap = devm_regmap_init_i2c(i2c, &fsa4480_regmap_config);
@@ -989,20 +995,26 @@ tcp_register_finish:
 	if (fsa_priv->vendor == WAS4783) {
 		fsa_priv->chg_nb.notifier_call = typec_switch_chg_event_changed;
 		fsa_priv->chg_nb.priority = 0;
-		rc = register_chg_glink_notifier(&fsa_priv->chg_nb);
-		if (rc) {
-			if (fsa_priv->usb_protocal != 1) {
-				unregister_ucsi_glink_notifier(&fsa_priv->ucsi_nb);
+		do {
+			rc = register_chg_glink_notifier(&fsa_priv->chg_nb);
+			if (rc) {
+				dev_err(fsa_priv->dev, "%s: Failed to register charge glink notifier, will retry for %d times\n",
+					__func__, (chg_retries - 1));
+				usleep_range(1*1000, 1*1005);
+				rc = 0;
 			} else {
-				#if IS_ENABLED(CONFIG_TCPC_CLASS)
-				if (fsa_priv->tcpc)
-					unregister_tcp_dev_notifier(fsa_priv->tcpc, &fsa_priv->ucsi_nb, TCP_NOTIFY_TYPE_USB);
-				#endif
+				fsa_priv->chg_registration = true;
+				dev_info(fsa_priv->dev, "%s: register charge glink notifier success\n", __func__);
+				break;
 			}
-			mutex_destroy(&fsa_priv->noti_lock);
-			dev_err(fsa_priv->dev, "%s: charge glink notifier registration failed: %d\n",
-				__func__, rc);
-			goto err_data;
+			chg_retries--;
+		} while (chg_retries > 0);
+
+		if (!fsa_priv->chg_registration) {
+			#if IS_ENABLED(CONFIG_OPLUS_FEATURE_MM_FEEDBACK)
+			mm_fb_audio_fatal_delay(OPLUS_AUDIO_EVENTID_HEADSET_DET, MM_FB_KEY_RATELIMIT_30MIN, \
+				FEEDBACK_DELAY_60S, "charge glink notifier registration failed");
+			#endif /* CONFIG_OPLUS_FEATURE_MM_FEEDBACK */
 		}
 	}
 	#endif /* OPLUS_ARCH_EXTENDS */
@@ -1067,7 +1079,7 @@ static int fsa4480_remove(struct i2c_client *i2c)
 		gpio_free(fsa_priv->hs_det_pin);
 	}
 	/*add WAS4783 support*/
-	if (fsa_priv->vendor == WAS4783) {
+	if (fsa_priv->vendor == WAS4783 && fsa_priv->chg_registration) {
 		unregister_chg_glink_notifier(&fsa_priv->chg_nb);
 	}
 	mutex_destroy(&fsa_priv->noti_lock);

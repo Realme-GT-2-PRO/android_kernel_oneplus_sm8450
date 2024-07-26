@@ -393,6 +393,7 @@ struct aw8697 {
 	struct hrtimer timer;
 	struct work_struct vibrator_work;
 	struct delayed_work rtp_work;
+	struct work_struct rtp_key_work;
 	struct work_struct rtp_single_cycle_work;
 	struct work_struct rtp_regroup_work;
 	struct delayed_work ram_work;

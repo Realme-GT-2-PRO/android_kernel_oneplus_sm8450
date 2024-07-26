@@ -189,9 +189,6 @@ static void *get_ipc_context(struct ffs_data *ffs)
 {
 	int idx = 0;
 
-	if (!ffs)
-		return NULL;
-
 	idx = ffs_inst_exists(ffs);
 	if (idx >= 0)
 		return ipc_log_s[idx].context;
