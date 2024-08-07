@@ -57,7 +57,8 @@ unsigned int sysctl_walt_low_latency_task_threshold; /* disabled by default */
 unsigned int sysctl_sched_conservative_pl;
 unsigned int sysctl_sched_min_task_util_for_boost = 51;
 unsigned int sysctl_sched_min_task_util_for_uclamp = 51;
-unsigned int sysctl_sched_min_task_util_for_colocation = 35;
+/* keep it to max value by default */
+unsigned int sysctl_sched_min_task_util_for_colocation = 1000;
 unsigned int sysctl_sched_many_wakeup_threshold = WALT_MANY_WAKEUP_DEFAULT;
 const int sched_user_hint_max = 1000;
 unsigned int sysctl_walt_rtg_cfs_boost_prio = 99; /* disabled by default */
@@ -919,9 +920,9 @@ void walt_tunables(void)
 		sysctl_sched_capacity_margin_dn_pct[i] = 85; /* ~15% margin */
 	}
 
-	sysctl_sched_group_upmigrate_pct = 100;
+	sysctl_sched_group_upmigrate_pct = 400;
 
-	sysctl_sched_group_downmigrate_pct = 95;
+	sysctl_sched_group_downmigrate_pct = 380;
 
 	sysctl_sched_asym_cap_sibling_freq_match_pct = 100;
 
