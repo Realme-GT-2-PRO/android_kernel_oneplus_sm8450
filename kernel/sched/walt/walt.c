@@ -22,6 +22,10 @@
 #include "walt.h"
 #include "trace.h"
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_SCHED_ASSIST)
+#include <../kernel/oplus_cpu/sched/sched_assist/sa_fair.h>
+#endif
+
 const char *task_event_names[] = {
 	"PUT_PREV_TASK",
 	"PICK_NEXT_TASK",
@@ -63,6 +67,8 @@ unsigned int walt_rotation_enabled;
 cpumask_t asym_cap_sibling_cpus = CPU_MASK_NONE;
 
 unsigned int __read_mostly sched_ravg_window = 20000000;
+EXPORT_SYMBOL(sched_ravg_window);
+
 unsigned int min_max_possible_capacity = 1024;
 unsigned int max_possible_capacity = 1024; /* max(rq->max_possible_capacity) */
 /* Initial task load. Newly created tasks are assigned this load. */
@@ -76,6 +82,32 @@ unsigned int __read_mostly sched_init_task_load_windows;
  * sched_load_granule.
  */
 unsigned int __read_mostly sched_load_granule;
+
+void default_em_map_util_freq(void *data, unsigned long util, unsigned long freq,
+	unsigned long cap, unsigned long *max_util, struct cpufreq_policy *policy,
+	bool *need_freq_update)
+{
+	return;
+}
+EXPORT_SYMBOL(default_em_map_util_freq);
+
+struct cluster_em_map_util_freq g_em_map_util_freq = {
+	.cem_map_util_freq = {
+		{
+			.gov_id = 0,
+			.pgov_map_func = default_em_map_util_freq,
+		},
+		{
+			.gov_id = 0,
+			.pgov_map_func = default_em_map_util_freq,
+		},
+		{
+			.gov_id = 0,
+			.pgov_map_func = default_em_map_util_freq,
+		},
+	},
+};
+EXPORT_SYMBOL(g_em_map_util_freq);
 
 /*
  *@boost:should be 0,1,2.
@@ -106,6 +138,7 @@ u64 walt_ktime_get_ns(void)
 		return ktime_to_ns(ktime_last);
 	return ktime_get_ns();
 }
+EXPORT_SYMBOL(walt_ktime_get_ns);
 
 static void walt_resume(void)
 {
@@ -666,6 +699,7 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load)
 
 	return (util >= capacity) ? capacity : util;
 }
+EXPORT_SYMBOL(cpu_util_freq_walt);
 
 /*
  * In this function we match the accumulated subtractions with the current
@@ -1933,6 +1967,10 @@ static void update_history(struct rq *rq, struct task_struct *p,
 				wts->unfilter - wrq->prev_window_size);
 
 done:
+#ifdef CONFIG_OPLUS_FEATURE_SCHED_SPREAD
+	if (p == rq->curr && p == current && event != PUT_PREV_TASK && walt_fair_task(p))
+		update_load_flag(p, rq);
+#endif /* CONFIG_OPLUS_FEATURE_SCHED_SPREAD */
 	trace_sched_update_history(rq, p, runtime, samples, event, wrq, wts);
 }
 
@@ -3713,6 +3751,10 @@ static void inc_rq_walt_stats(struct rq *rq, struct task_struct *p)
 	wts->rtg_high_prio = task_rtg_high_prio(p);
 	if (wts->rtg_high_prio)
 		wrq->walt_stats.nr_rtg_high_prio_tasks++;
+
+#ifdef CONFIG_OPLUS_FEATURE_SCHED_SPREAD
+	inc_ld_stats(p, rq);
+#endif /* CONFIG_OPLUS_FEATURE_SCHED_SPREAD */
 }
 
 static void dec_rq_walt_stats(struct rq *rq, struct task_struct *p)
@@ -3726,6 +3768,9 @@ static void dec_rq_walt_stats(struct rq *rq, struct task_struct *p)
 	if (wts->rtg_high_prio)
 		wrq->walt_stats.nr_rtg_high_prio_tasks--;
 
+#ifdef CONFIG_OPLUS_FEATURE_SCHED_SPREAD
+	dec_ld_stats(p, rq);
+#endif /* CONFIG_OPLUS_FEATURE_SCHED_SPREAD */
 	BUG_ON(wrq->walt_stats.nr_big_tasks < 0);
 }
 
@@ -3996,9 +4041,13 @@ static void android_rvh_try_to_wake_up_success(void *unused, struct task_struct 
 {
 	unsigned long flags;
 	int cpu = p->cpu;
+	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	if (unlikely(walt_disabled))
 		return;
+
+	if (wts->mvp_list.prev == NULL && wts->mvp_list.next == NULL)
+		init_new_task_load(p);
 
 	raw_spin_lock_irqsave(&cpu_rq(cpu)->lock, flags);
 	if (do_pl_notif(cpu_rq(cpu)))
@@ -4142,6 +4191,8 @@ static void android_rvh_sched_exec(void *unused, bool *cond)
 
 static void android_rvh_build_perf_domains(void *unused, bool *eas_check)
 {
+	if (unlikely(walt_disabled))
+		return;
 	*eas_check = true;
 }
 

@@ -8,6 +8,12 @@
 #include "walt.h"
 #include "trace.h"
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_SCHED_ASSIST)
+#include <../../oplus_cpu/sched/sched_assist/sa_fair.h>
+#endif
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_LOADBALANCE)
+#include <../../oplus_cpu/sched/sched_assist/sa_balance.h>
+#endif
 static inline unsigned long walt_lb_cpu_util(int cpu)
 {
 	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
@@ -253,6 +259,18 @@ static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
 		if (!force && !task_fits_max(p, dst_cpu))
 			return false;
 	}
+
+	/* Don't detach task if it is under active migration */
+	if (wrq->push_task == p)
+		return false;
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_SCHED_ASSIST)
+	if (!task_tpd_check(p, dst_cpu))
+		return false;
+
+	if (should_ux_task_skip_cpu(p, dst_cpu))
+		return false;
+#endif
 
 	return true;
 }
@@ -604,6 +622,17 @@ void walt_lb_tick(struct rq *rq)
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_LOADBALANCE)
+	if (__oplus_tick_balance(NULL, rq))
+		return;
+#endif
+
+
+	raw_spin_lock(&rq->lock);
+	if (available_idle_cpu(prev_cpu) && is_reserved(prev_cpu) && !rq->active_balance)
+		clear_reserved(prev_cpu);
+	raw_spin_unlock(&rq->lock);
+
 	raw_spin_lock(&rq->lock);
 	if (available_idle_cpu(prev_cpu) && is_reserved(prev_cpu) && !rq->active_balance)
 		clear_reserved(prev_cpu);
@@ -777,6 +806,11 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	bool help_min_cap = false, find_next_cluster = false;
 	int first_idle;
 	int has_misfit = 0;
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_LOADBALANCE)
+	if (__oplus_newidle_balance(unused, this_rq, rf, pulled_task, done))
+		return;
+#endif
 
 	if (unlikely(walt_disabled))
 		return;

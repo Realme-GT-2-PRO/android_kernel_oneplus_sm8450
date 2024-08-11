@@ -11,6 +11,8 @@
 
 #include <linux/kthread.h>
 #include <trace/events/power.h>
+#include <trace/hooks/sched.h>
+
 
 #include "walt.h"
 #include "trace.h"
@@ -72,6 +74,7 @@ struct waltgov_cpu {
 };
 
 DEFINE_PER_CPU(struct waltgov_callback *, waltgov_cb_data);
+EXPORT_PER_CPU_SYMBOL_GPL(waltgov_cb_data);
 static DEFINE_PER_CPU(struct waltgov_cpu, waltgov_cpu);
 static DEFINE_PER_CPU(struct waltgov_tunables *, cached_tunables);
 
@@ -242,6 +245,8 @@ static unsigned int get_next_freq(struct waltgov_policy *wg_policy,
 		return 0;
 
 	wg_policy->need_freq_update = false;
+
+	wg_policy->cached_raw_freq = freq;
 
 	final_freq = cpufreq_driver_resolve_freq(policy, freq);
 
